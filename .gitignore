@@ -1,0 +1,7 @@
+node_modules/
+.env
+token.json
+history.json
+downloads/*
+!downloads/.gitkeep
+server.log
