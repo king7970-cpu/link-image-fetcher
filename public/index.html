@@ -183,6 +183,10 @@
     </div>
 
     <div class="card">
+      <label for="accountSelect">חשבון Drive יעד</label>
+      <div class="field">
+        <select id="accountSelect"></select>
+      </div>
       <label for="urlInput">לינק לתמונה (ChatGPT / Gemini / כתובת תמונה)</label>
       <div class="row">
         <div class="field">
@@ -192,6 +196,17 @@
       </div>
       <div id="downloadError" class="error-text" hidden></div>
       <div id="downloadHint" class="hint" hidden></div>
+    </div>
+
+    <div class="card">
+      <label for="newAccountLabel">הוספת חשבון Drive חדש</label>
+      <div class="row">
+        <div class="field">
+          <input id="newAccountLabel" type="text" placeholder="שם קצר, למשל h או mine" autocomplete="off">
+        </div>
+        <button id="addAccountBtn" class="secondary">הוסף</button>
+      </div>
+      <div class="hint">אחרי הלחיצה ייפתח אישור גוגל. בסיום יוצג טקסט להעתקה ל-Render.</div>
     </div>
 
     <div class="card">
@@ -231,7 +246,7 @@
       div.innerHTML = `
         <div class="info">
           <div class="fname">${f.filename}</div>
-          <div class="meta">${sourceHost} · ${fmtTime(f.time)}</div>
+          <div class="meta">${f.account ? 'חשבון: ' + f.account + ' · ' : ''}${sourceHost} · ${fmtTime(f.time)}</div>
           ${f.driveError ? `<div class="drive-error">שגיאת Drive: ${f.driveError}</div>` : ''}
         </div>
         <div class="actions">
@@ -256,12 +271,33 @@
     return res.json();
   }
 
-  function showMain(driveOn) {
+  function populateAccounts(accounts) {
+    const select = $('accountSelect');
+    select.innerHTML = '';
+    if (!accounts || accounts.length === 0) {
+      const opt = document.createElement('option');
+      opt.textContent = 'אין חשבונות מחוברים - הוסף חשבון למטה';
+      opt.value = '';
+      select.appendChild(opt);
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    for (const name of accounts) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    }
+  }
+
+  function showMain(auth) {
     $('loginCard').hidden = true;
     $('mainArea').hidden = false;
     const badge = $('driveBadge');
-    badge.textContent = driveOn ? 'Drive מחובר' : 'Drive לא מוגדר';
-    badge.className = 'badge ' + (driveOn ? 'on' : 'off');
+    badge.textContent = auth.driveConfigured ? 'Drive מחובר' : 'Drive לא מוגדר';
+    badge.className = 'badge ' + (auth.driveConfigured ? 'on' : 'off');
+    populateAccounts(auth.accounts);
     loadHistory();
   }
 
@@ -279,7 +315,7 @@
     if (result) {
       TOKEN = token;
       try { localStorage.setItem('appToken', token); } catch (_) {}
-      showMain(result.driveConfigured);
+      showMain(result);
       return true;
     }
     return false;
@@ -306,6 +342,15 @@
 
   $('refreshBtn').addEventListener('click', loadHistory);
 
+  $('addAccountBtn').addEventListener('click', () => {
+    const label = $('newAccountLabel').value.trim();
+    if (!/^[a-zA-Z0-9_-]{1,20}$/.test(label)) {
+      alert('שם החשבון חייב להיות אנגלית/מספרים בלבד (עד 20 תווים), למשל h');
+      return;
+    }
+    window.open('/auth/google?label=' + encodeURIComponent(label), '_blank');
+  });
+
   $('downloadBtn').addEventListener('click', async () => {
     const url = $('urlInput').value.trim();
     const btn = $('downloadBtn');
@@ -314,6 +359,12 @@
     errBox.hidden = true;
     hintBox.hidden = true;
     if (!url) return;
+    const account = $('accountSelect').value;
+    if (!account) {
+      errBox.textContent = 'בחר חשבון יעד';
+      errBox.hidden = false;
+      return;
+    }
 
     btn.disabled = true;
     const originalText = btn.textContent;
@@ -323,7 +374,7 @@
       const res = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-app-token': TOKEN },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, account }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'שגיאה');
