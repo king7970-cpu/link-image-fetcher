@@ -130,6 +130,7 @@
     justify-content: space-between;
     align-items: center;
   }
+  .history-actions { display: flex; gap: 8px; }
   .history-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 20px 0; }
   .history-list { display: flex; flex-direction: column; gap: 10px; max-height: 480px; overflow-y: auto; }
   .history-item {
@@ -212,7 +213,10 @@
     <div class="card">
       <div class="history-title">
         <span>היסטוריית הורדות</span>
-        <button id="refreshBtn" class="secondary" style="font-size:12px;padding:6px 10px;">רענן</button>
+        <div class="history-actions">
+          <button id="clearHistoryBtn" class="secondary" style="font-size:12px;padding:6px 10px;">מחק היסטוריה</button>
+          <button id="refreshBtn" class="secondary" style="font-size:12px;padding:6px 10px;">רענן</button>
+        </div>
       </div>
       <div id="historyEmpty" class="history-empty" hidden>עדיין לא הורדו תמונות.</div>
       <div id="historyList" class="history-list"></div>
@@ -341,6 +345,17 @@
   });
 
   $('refreshBtn').addEventListener('click', loadHistory);
+
+  $('clearHistoryBtn').addEventListener('click', async () => {
+    if (!confirm('למחוק את רשימת ההיסטוריה באתר?\nהקבצים ב-Drive לא יימחקו.')) return;
+    try {
+      const res = await fetch('/api/history/clear', { method: 'POST', headers: { 'x-app-token': TOKEN } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      renderHistory([]);
+    } catch (e) {
+      alert('מחיקת ההיסטוריה נכשלה: ' + e.message);
+    }
+  });
 
   $('addAccountBtn').addEventListener('click', () => {
     const label = $('newAccountLabel').value.trim();

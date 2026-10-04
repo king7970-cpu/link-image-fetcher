@@ -6,7 +6,7 @@ const express = require('express');
 const { isChatGptShareLink, extractChatGptImages } = require('./lib/chatgptExtractor');
 const { extractGenericImages } = require('./lib/genericExtractor');
 const { driveConfigured, listAccounts, getAuthUrl, exchangeCode, mergedAccountsJson, uploadToDrive } = require('./lib/drive');
-const { readHistory, addHistoryEntries } = require('./lib/history');
+const { readHistory, addHistoryEntries, clearHistory } = require('./lib/history');
 
 const app = express();
 app.use(express.json());
@@ -62,6 +62,11 @@ app.get('/api/auth-check', checkToken, (req, res) => {
 
 app.get('/api/history', checkToken, (req, res) => {
   res.json({ files: readHistory() });
+});
+
+app.post('/api/history/clear', checkToken, (req, res) => {
+  clearHistory();
+  res.json({ ok: true });
 });
 
 app.post('/api/download', checkToken, async (req, res) => {
